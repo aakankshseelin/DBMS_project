@@ -390,7 +390,7 @@ def admin_portal():
     
     menu = st.sidebar.selectbox(
         "Menu",
-        ["Add Book", "Delete Book", "View Books", "Register Member", "View Members"]
+        ["Add Book", "Delete Book", "View Books", "Register Member", "View Members", "View Member Transactions"]
     )
     
     if st.sidebar.button("Logout"):
@@ -484,6 +484,69 @@ def admin_portal():
             )
         else:
             st.info("No members found")
+            
+    elif menu == "View Member Transactions":
+        st.header("Member Transactions")
+        
+        # Fetch all members for the dropdown
+        members = fetch_all_members()
+        if members:
+            selected_member = st.selectbox(
+                "Select Member",
+                options=members,
+                format_func=lambda x: f"{x['First_Name']} {x['Last_Name']} (ID: {x['Member_ID']})"
+            )
+            
+            if selected_member:
+                st.subheader(f"Transactions for {selected_member['First_Name']} {selected_member['Last_Name']}")
+                transactions = fetch_member_transactions(selected_member['Member_ID'])
+                
+                if transactions:
+                    # Convert dates to string format for better display
+                    for transaction in transactions:
+                        transaction['Transaction_Date'] = transaction['Transaction_Date'].strftime("%Y-%m-%d")
+                        transaction['Due_Date'] = transaction['Due_Date'].strftime("%Y-%m-%d")
+                        if transaction['Return_Date']:
+                            transaction['Return_Date'] = transaction['Return_Date'].strftime("%Y-%m-%d")
+                    
+                    # Create a formatted dataframe
+                    st.dataframe(
+                        transactions,
+                        column_config={
+                            "Transaction_ID": st.column_config.NumberColumn("Transaction ID"),
+                            "Title": "Book Title",
+                            "Transaction_Type": "Type",
+                            "Transaction_Date": "Issue Date",
+                            "Due_Date": "Due Date",
+                            "Return_Date": "Return Date",
+                            "Fine_Amount": st.column_config.NumberColumn(
+                                "Fine Amount",
+                                format="₹%d"
+                            ),
+                            "Status": st.column_config.SelectboxColumn(
+                                "Status",
+                                options=["Active", "Completed"]
+                            )
+                        }
+                    )
+                    
+                    # Add some statistics
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        active_books = sum(1 for t in transactions if t['Status'] == 'Active')
+                        st.metric("Active Borrows", active_books)
+                    with col2:
+                        total_fines = sum(t['Fine_Amount'] for t in transactions)
+                        st.metric("Total Fines", f"₹{total_fines}")
+                    with col3:
+                        overdue_books = sum(1 for t in transactions 
+                                         if t['Status'] == 'Active' and 
+                                         datetime.strptime(t['Due_Date'], "%Y-%m-%d").date() < datetime.now().date())
+                        st.metric("Overdue Books", overdue_books)
+                else:
+                    st.info("No transactions found for this member")
+        else:
+            st.info("No members found in the system")
             
 def member_portal():
     st.title("Exam Centre Member Portal")
