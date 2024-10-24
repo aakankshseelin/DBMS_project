@@ -384,7 +384,7 @@ def login_page():
                     st.error("Invalid member credentials")
 
 def admin_portal():
-    st.title("Library Administration Portal")
+    st.title("Exam Centre Administration Portal")
     st.write(f"Welcome, {st.session_state['user_data']['Username']}")
     
     menu = st.sidebar.selectbox(
@@ -485,7 +485,7 @@ def admin_portal():
             st.info("No members found")
             
 def member_portal():
-    st.title("Library Member Portal")
+    st.title("Exam Centre Member Portal")
     st.write(f"Welcome, {st.session_state['user_data']['Username']}")
     
     menu = st.sidebar.selectbox(

@@ -550,3 +550,32 @@ INSERT INTO Books (ISBN, Title, Author_ID, Category_ID) VALUES
 ('9780133943030', 'Software Engineering',
     (SELECT Author_ID FROM Authors WHERE Author_Name = 'Ian Sommerville'),
     @se_category_id);
+    
+INSERT INTO Authors (Author_Name) VALUES 
+('Albert Einstein'),
+('Richard Feynman'),
+('Isaac Newton'),
+('Brian Greene');
+
+INSERT INTO Books (ISBN, Title, Author_ID, Category_ID, Availability)
+VALUES
+('9780141011110', 'Relativity: The Special and the General Theory', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Albert Einstein'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Physics'), 
+    'In stock'),
+
+
+('9780465025275', 'The Feynman Lectures on Physics', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Richard Feynman'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Physics'), 
+    'In stock'),
+
+('9780486600819', 'Principia: Mathematical Principles of Natural Philosophy', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Isaac Newton'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Physics'), 
+    'In stock'),
+
+('9780393338102', 'The Elegant Universe: Superstrings, Hidden Dimensions, and the Quest for the Ultimate Theory', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Brian Greene'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Physics'), 
+    'In stock');
