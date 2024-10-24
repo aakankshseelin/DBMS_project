@@ -265,6 +265,7 @@ def fetch_member_transactions(member_id):
             SELECT 
                 mt.Transaction_ID,
                 b.Title,
+                mt.ISBN,
                 mt.Transaction_Type,
                 mt.Transaction_Date,
                 mt.Due_Date,
@@ -528,12 +529,12 @@ def member_portal():
         active_transactions = [t for t in transactions if t['Status'] == 'Active']
         
         if active_transactions:
-            transaction_to_return = st.selectbox(
+           transaction_to_return = st.selectbox(
                 "Select book to return",
                 options=active_transactions,
                 format_func=lambda x: f"{x['Title']} (Due: {x['Due_Date']})"
             )
-            if st.button("Return Selected Book"):
+           if st.button("Return Selected Book"):
                 return_book(st.session_state['user_data']['Member_ID'], 
                           transaction_to_return['ISBN'])
         else:
