@@ -188,8 +188,6 @@ BEGIN
 END //
 DELIMITER ;
 
--- Update existing procedures for member transactions
-
 -- Procedure to borrow a book
 DELIMITER //
 CREATE PROCEDURE BorrowBook(
@@ -284,8 +282,7 @@ BEGIN
 END //
 DELIMITER ;
 
-desc Members;
-select*from Members;
+
 CREATE OR REPLACE VIEW BookListView AS
 SELECT 
     b.ISBN,
@@ -417,19 +414,6 @@ INSERT INTO Books (ISBN, Title, Author_ID, Category_ID) VALUES
     (SELECT Author_ID FROM Authors WHERE Author_Name = 'Terence Tao'),
     @math_category_id);
 
--- Verify the insertions
-SELECT 
-    b.ISBN,
-    b.Title,
-    a.Author_Name,
-    c.Category_Name,
-    b.Availability
-FROM Books b
-JOIN Authors a ON b.Author_ID = a.Author_ID
-JOIN Categories c ON b.Category_ID = c.Category_ID
-WHERE c.Category_Name = 'Mathematics'
-ORDER BY b.Title;
-
 -- First, let's add some renowned chemistry authors
 INSERT INTO Authors (Author_Name) VALUES
 ('Peter Atkins'),
@@ -468,18 +452,6 @@ INSERT INTO Books (ISBN, Title, Author_ID, Category_ID) VALUES
     (SELECT Author_ID FROM Authors WHERE Author_Name = 'Martin Silberberg'),
     @chem_category_id);
 
--- Verify the insertions
-SELECT 
-    b.ISBN,
-    b.Title,
-    a.Author_Name,
-    c.Category_Name,
-    b.Availability
-FROM Books b
-JOIN Authors a ON b.Author_ID = a.Author_ID
-JOIN Categories c ON b.Category_ID = c.Category_ID
-WHERE c.Category_Name = 'Chemistry'
-ORDER BY b.Title;
 
 INSERT INTO Authors (Author_Name) VALUES
 ('Abraham Silberschatz'),
@@ -579,3 +551,131 @@ VALUES
     (SELECT Author_ID FROM Authors WHERE Author_Name = 'Brian Greene'), 
     (SELECT Category_ID FROM Categories WHERE Category_Name = 'Physics'), 
     'In stock');
+
+
+DELIMITER //
+
+CREATE PROCEDURE DeleteBook(
+    IN p_admin_id INT,
+    IN p_isbn VARCHAR(13)
+)
+BEGIN
+    DECLARE v_book_exists INT;
+    DECLARE v_active_transactions INT;
+    
+    -- Check if book exists
+    SELECT COUNT(*) INTO v_book_exists
+    FROM Books
+    WHERE ISBN = p_isbn;
+    
+    -- Check if book has any active transactions
+    SELECT COUNT(*) INTO v_active_transactions
+    FROM MemberTransactions
+    WHERE ISBN = p_isbn AND Status = 'Active';
+    
+    -- Only proceed if book exists and has no active transactions
+    IF v_book_exists = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Book does not exist';
+    ELSEIF v_active_transactions > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cannot delete book with active transactions';
+    ELSE
+        -- Delete the book
+        DELETE FROM Books WHERE ISBN = p_isbn;
+    END IF;
+END //
+
+DELIMITER ;
+
+CREATE TABLE MemberBorrowingSummary (
+    Member_ID INT PRIMARY KEY,
+    Total_Books_Borrowed INT DEFAULT 0,
+    Currently_Borrowed INT DEFAULT 0,
+    Total_Fines_Paid DECIMAL(10, 2) DEFAULT 0.00,
+    Last_Borrowed_Date TIMESTAMP,
+    FOREIGN KEY (Member_ID) REFERENCES Members(Member_ID)
+);
+
+DELIMITER //
+-- Trigger to initialize summary when new member is created
+CREATE TRIGGER after_member_insert 
+AFTER INSERT ON Members
+FOR EACH ROW
+BEGIN
+    INSERT INTO MemberBorrowingSummary (Member_ID)
+    VALUES (NEW.Member_ID);
+END;//
+
+DELIMITER //
+-- Trigger to update borrowing summary when a book is borrowed
+CREATE TRIGGER after_transaction_insert
+AFTER INSERT ON MemberTransactions
+FOR EACH ROW
+BEGIN
+    IF NEW.Transaction_Type = 'Borrow' THEN
+        UPDATE MemberBorrowingSummary
+        SET Total_Books_Borrowed = Total_Books_Borrowed + 1,
+            Currently_Borrowed = Currently_Borrowed + 1,
+            Last_Borrowed_Date = NEW.Transaction_Date
+        WHERE Member_ID = NEW.Member_ID;
+    END IF;
+END;//
+
+DELIMITER //
+CREATE TRIGGER after_transaction_update
+AFTER UPDATE ON MemberTransactions
+FOR EACH ROW
+BEGIN
+    IF NEW.Status = 'Completed' AND OLD.Status = 'Active' THEN
+        UPDATE MemberBorrowingSummary
+        SET Currently_Borrowed = Currently_Borrowed - 1,
+            Total_Fines_Paid = Total_Fines_Paid + NEW.Fine_Amount
+        WHERE Member_ID = NEW.Member_ID;
+    END IF;
+END;//
+
+DELIMITER //
+CREATE TRIGGER before_borrow_check
+BEFORE INSERT ON MemberTransactions
+FOR EACH ROW
+BEGIN
+    DECLARE overdue_count INT;
+    
+    SELECT COUNT(*) INTO overdue_count
+    FROM MemberTransactions
+    WHERE Member_ID = NEW.Member_ID
+    AND Status = 'Active'
+    AND Due_Date < CURDATE();
+    
+    IF overdue_count > 0 AND NEW.Transaction_Type = 'Borrow' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cannot borrow new books while having overdue books';
+    END IF;
+END;//
+
+DELIMITER //
+CREATE TABLE BookStatusLog (
+    Log_ID INT PRIMARY KEY AUTO_INCREMENT,
+    ISBN VARCHAR(13),
+    Old_Status VARCHAR(20),
+    New_Status VARCHAR(20),
+    Changed_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Changed_By VARCHAR(100),
+    FOREIGN KEY (ISBN) REFERENCES Books(ISBN)
+);//
+
+DELIMITER //
+CREATE TRIGGER after_book_status_change
+AFTER UPDATE ON Books
+FOR EACH ROW
+BEGIN
+    IF NEW.Availability != OLD.Availability THEN
+        INSERT INTO BookStatusLog (ISBN, Old_Status, New_Status, Changed_By)
+        VALUES (NEW.ISBN, OLD.Availability, NEW.Availability, CURRENT_USER());
+    END IF;
+END;//
+
+
+
+
