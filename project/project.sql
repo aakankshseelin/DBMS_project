@@ -676,6 +676,36 @@ BEGIN
     END IF;
 END;//
 
+SET @mechanics_category_id = (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical');
+INSERT INTO Authors (Author_Name) VALUES
+('David Dowling'),
+('Benson Tongue'),
+('Deborah Kaminski'),
+('Gordon Kirk'),
+('Ali Sadegh');
 
+INSERT INTO Books (ISBN, Title, Author_ID, Category_ID, Availability) VALUES
+('9780133514223', 'An Introduction to Mechanical Engineering', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'David Dowling'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical'), 
+    'In stock'),
 
+('9780470554418', 'Principles of Vibration', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Benson Tongue'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical'), 
+    'In stock'),
 
+('9780134593809', 'Introduction to Thermal Systems Engineering', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Deborah Kaminski'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical'), 
+    'In stock'),
+
+('9780133514360', 'Basic Engineering Circuit Analysis', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Gordon Kirk'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical'), 
+    'In stock'),
+
+('9780131412286', 'Fundamentals of Fluid Mechanics', 
+    (SELECT Author_ID FROM Authors WHERE Author_Name = 'Ali Sadegh'), 
+    (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical'), 
+    'In stock');
