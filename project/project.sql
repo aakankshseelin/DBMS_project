@@ -709,3 +709,97 @@ INSERT INTO Books (ISBN, Title, Author_ID, Category_ID, Availability) VALUES
     (SELECT Author_ID FROM Authors WHERE Author_Name = 'Ali Sadegh'), 
     (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mechanics and Mechanical'), 
     'In stock');
+    
+-- Function to calculate total fines for a member
+DELIMITER //
+CREATE FUNCTION CalculateTotalFines(p_member_id INT) 
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE total_fines DECIMAL(10,2);
+    
+    SELECT SUM(Fine_Amount)
+    INTO total_fines
+    FROM MemberTransactions
+    WHERE Member_ID = p_member_id;
+    
+    RETURN COALESCE(total_fines, 0.00);
+END //
+DELIMITER ;
+
+
+-- Function to get book availability status with additional details
+DELIMITER //
+CREATE FUNCTION GetBookAvailabilityDetails(p_isbn VARCHAR(13)) 
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    DECLARE status VARCHAR(100);
+    DECLARE due_date DATE;
+    
+    SELECT 
+        CASE 
+            WHEN b.Availability = 'In stock' THEN 'Available'
+            ELSE CONCAT('Checked out until ', DATE_FORMAT(mt.Due_Date, '%Y-%m-%d'))
+        END INTO status
+    FROM Books b
+    LEFT JOIN MemberTransactions mt ON b.ISBN = mt.ISBN 
+        AND mt.Status = 'Active'
+    WHERE b.ISBN = p_isbn
+    LIMIT 1;
+    
+    RETURN COALESCE(status, 'Book not found');
+END //
+DELIMITER ;
+
+-- Nested Query: Find books that have never been borrowed
+SELECT b.ISBN, 
+       b.Title, 
+       a.Author_Name,
+       c.Category_Name
+FROM Books b
+JOIN Authors a ON b.Author_ID = a.Author_ID
+JOIN Categories c ON b.Category_ID = c.Category_ID
+WHERE b.ISBN NOT IN (
+    SELECT DISTINCT ISBN 
+    FROM MemberTransactions
+);
+
+-- Aggregate Query: Calculate borrowing statistics by category
+SELECT 
+    c.Category_Name,
+    COUNT(DISTINCT mt.ISBN) as total_books_borrowed,
+    COUNT(DISTINCT mt.Member_ID) as unique_borrowers,
+    AVG(mt.Fine_Amount) as average_fine,
+    SUM(CASE WHEN mt.Status = 'Overdue' THEN 1 ELSE 0 END) as overdue_count
+FROM Categories c
+JOIN Books b ON c.Category_ID = b.Category_ID
+LEFT JOIN MemberTransactions mt ON b.ISBN = mt.ISBN
+GROUP BY c.Category_Name
+ORDER BY total_books_borrowed DESC;
+
+-- Complex Nested Query: Find members with overdue books and their fine details
+SELECT 
+    m.Member_ID,
+    m.First_Name,
+    m.Last_Name,
+    m.Email,
+    COUNT(mt.Transaction_ID) as overdue_books,
+    SUM(
+        CASE 
+            WHEN mt.Status = 'Active' AND mt.Due_Date < CURDATE() 
+            THEN DATEDIFF(CURDATE(), mt.Due_Date) * 10 
+            ELSE mt.Fine_Amount 
+        END
+    ) as total_fines
+FROM Members m
+JOIN MemberTransactions mt ON m.Member_ID = mt.Member_ID
+WHERE mt.Status = 'Active' 
+AND mt.Due_Date < CURDATE()
+GROUP BY m.Member_ID, m.First_Name, m.Last_Name, m.Email
+HAVING total_fines > (
+    SELECT AVG(Fine_Amount) 
+    FROM MemberTransactions 
+    WHERE Fine_Amount > 0
+);
+
