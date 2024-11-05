@@ -340,7 +340,7 @@ INSERT INTO Members (Username, Password, First_Name, Last_Name, Email, Status) V
 ('sandra_king', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Sandra', 'King', 'sandra.king@email.com', 'Active');
 
 
--- First, let's add some renowned mathematics authors
+
 INSERT INTO Authors (Author_Name) VALUES
 ('G.H. Hardy'),
 ('Paul Halmos'),
@@ -355,7 +355,6 @@ INSERT INTO Authors (Author_Name) VALUES
 ('Timothy Gowers'),
 ('Terence Tao');
 
--- Now, let's get the Category_ID for Mathematics
 SET @math_category_id = (SELECT Category_ID FROM Categories WHERE Category_Name = 'Mathematics');
 
 -- Insert mathematics books
@@ -414,7 +413,7 @@ INSERT INTO Books (ISBN, Title, Author_ID, Category_ID) VALUES
     (SELECT Author_ID FROM Authors WHERE Author_Name = 'Terence Tao'),
     @math_category_id);
 
--- First, let's add some renowned chemistry authors
+
 INSERT INTO Authors (Author_Name) VALUES
 ('Peter Atkins'),
 ('Raymond Chang'),
