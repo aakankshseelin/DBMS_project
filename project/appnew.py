@@ -168,6 +168,7 @@ def delete_book(admin_id, isbn):
         conn.commit()
         st.success("Book deleted successfully")
         return True
+    
     except mysql.connector.Error as error:
         st.error(f"Error deleting book: {error}")
         return False
